@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Robot Si Tukang Jalan – Level Upgrade! (10 Level)</title>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.7.0/lib/p5.min.js"></script>
+  <style>
+    body { text-align:center; font-family:sans-serif; background-color: #e0f7fa; }
+    #controls { margin:10px; }
+    button { 
+      padding:8px 12px; 
+      font-size:16px; 
+      margin:0 5px; 
+      background-color: #0277bd;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #01579b;
+    }
+    #commands { 
+      min-height:24px; 
+      border: 1px dashed #aaa; 
+      padding: 5px; 
+      margin-top: 10px;
+      display: inline-block;
+      min-width: 200px;
+      vertical-align: middle;
+      background-color: #f5f5f5;
+    }
+    h1 { color: #004d40; }
+  </style>
+</head>
+<body>
+  <h1>Robot Si Tukang Jalan – Level <span id="level">1</span> dari <span id="maxLevelDisplay">10</span></h1>
+  <div id="game"></div>
+  <div id="controls">
+    <button onclick="addCommand('forward')">Maju</button>
+    <button onclick="addCommand('left')">Kiri</button>
+    <button onclick="addCommand('right')">Kanan</button>
+    <button onclick="runCommands()">Jalankan</button>
+    <button onclick="resetGame()">Ulang</button>
+  </div>
+  <div>Perintah: <span id="commands"></span></div>
+
+<script>
+let gridSize = 5, cellSize = 80;
+let commands = [], level = 1;
+let maxLevel = 10; // Menetapkan maksimum level
+let robot, goal, stones;
+let dir = 0; // 0: atas, 1: kanan, 2: bawah, 3: kiri
+let moving = false, timer;
+
+function setup(){
+  let canvas = createCanvas(gridSize*cellSize, gridSize*cellSize);
+  canvas.parent('game');
+  document.getElementById('maxLevelDisplay').textContent = maxLevel; // Update tampilan max level
+  resetGame();
+}
+
+function resetGame(){
+  commands = []; 
+  dir = 0; // Robot selalu menghadap ke atas di awal
+  moving = false;
+  robot = {x:0, y:0}; // Robot selalu mulai dari (0,0)
+  goal = {x: gridSize-1, y: gridSize-1}; // Tujuan selalu di (4,4)
+  stones = [];
+  generateStones();
+  document.getElementById('commands').textContent = '';
+  document.getElementById('level').textContent = level;
+}
+
+function generateStones(){
+  // Menambahkan jumlah batu berdasarkan level, dengan batas maksimum
+  let count = min(level + 1, (gridSize * gridSize) - 2); // Hindari batu di start/end
+  // Menambahkan pola batu untuk level yang lebih tinggi untuk tantangan tertentu
+  if (level === 6) {
+    stones.push({x:1, y:1}, {x:1, y:3}, {x:3, y:1}, {x:3, y:3});
+  } else if (level === 7) {
+    stones.push({x:2, y:0}, {x:2, y:1}, {x:2, y:3}, {x:2, y:4});
+  } else if (level === 8) {
+    stones.push({x:0, y:2}, {x:1, y:2}, {x:3, y:2}, {x:4, y:2}, {x:2, y:0}, {x:2, y:1}, {x:2, y:3}, {x:2, y:4});
+  } else if (level === 9) {
+    // Pola labirin yang lebih padat
+    stones.push({x:0,y:1},{x:0,y:3}, {x:1,y:0},{x:1,y:2},{x:1,y:4}, {x:2,y:1},{x:2,y:3}, {x:3,y:0},{x:3,y:2},{x:3,y:4}, {x:4,y:1},{x:4,y:3});
+  } else if (level === 10) {
+    // Pola sangat kompleks / hampir penuh
+    stones.push({x:0,y:1},{x:0,y:3}, {x:1,y:0},{x:1,y:2},{x:1,y:4}, {x:2,y:0},{x:2,y:1},{x:2,y:3},{x:2,y:4}, {x:3,y:0},{x:3,y:2},{x:3,y:4}, {x:4,y:1},{x:4,y:3});
+  } else {
+    // Untuk level lainnya, gunakan generasi acak
+    while(stones.length < count){
+      let sx = floor(random(gridSize)), sy = floor(random(gridSize));
+      // Pastikan batu tidak muncul di posisi robot awal atau tujuan
+      if((sx === robot.x && sy === robot.y) || (sx === goal.x && sy === goal.y)) continue;
+      // Pastikan batu tidak duplikat
+      if(!stones.some(s => s.x === sx && s.y === sy)){
+        stones.push({x:sx, y:sy});
+      }
+    }
+  }
+}
+
+function draw(){
+  background(240);
+  drawGrid();
+  drawStones();
+  drawGoal();
+  drawRobot();
+}
+
+function drawGrid(){
+  stroke(200);
+  for(let i=0;i<=gridSize;i++){
+    line(i*cellSize, 0, i*cellSize, height);
+    line(0, i*cellSize, width, i*cellSize);
+  }
+}
+
+function drawRobot(){
+  let px = robot.x * cellSize + cellSize / 2;
+  let py = robot.y * cellSize + cellSize / 2;
+  push(); 
+  translate(px, py);
+  rotate(dir * HALF_PI); // Rotasi robot secara visual
+  fill('#1E90FF'); noStroke();
+  triangle(-20, 20, 20, 20, 0, -20);
+  pop();
+}
+
+function drawGoal(){
+  fill('gold'); noStroke();
+  ellipse(goal.x * cellSize + cellSize / 2, goal.y * cellSize + cellSize / 2, cellSize / 2);
+}
+
+function drawStones(){
+  fill('#555'); noStroke();
+  stones.forEach(s=>{
+    rect(s.x * cellSize + 10, s.y * cellSize + 10, cellSize - 20, cellSize - 20);
+  });
+}
+
+function addCommand(c){
+  if(moving) return;
+  commands.push(c);
+  document.getElementById('commands').textContent = commands.join(', ');
+}
+
+function runCommands(){
+  if(moving || commands.length === 0) return;
+  let i = 0;
+  moving = true;
+  timer = setInterval(()=>{
+    if(i < commands.length){
+      exec(commands[i]); 
+      i++;
+    } else {
+      clearInterval(timer);
+      moving = false;
+      checkOutcome();
+    }
+  }, 400); // Kecepatan eksekusi perintah
+}
+
+function exec(c){
+  if(c === 'left') dir = (dir + 3) % 4;
+  else if(c === 'right') dir = (dir + 1) % 4;
+  else if(c === 'forward'){
+    let dx = [0,1,0,-1][dir], dy = [-1,0,1,0][dir];
+    let nx = robot.x + dx, ny = robot.y + dy;
+
+    // Periksa tabrakan dengan dinding atau batu
+    let hitObstacle = false;
+    if (nx < 0 || nx >= gridSize || ny < 0 || ny >= gridSize) { // Tabrakan dinding
+      hitObstacle = true;
+    } else if (stones.some(s => s.x === nx && s.y === ny)) { // Tabrakan batu
+      hitObstacle = true;
+    }
+
+    if (!hitObstacle) {
+      robot.x = nx; 
+      robot.y = ny;
+    } else {
+      // Jika menabrak, segera hentikan perintah dan berikan feedback
+      clearInterval(timer);
+      moving = false;
+      alert('⚠️ Robot menabrak dinding atau batu! Coba lagi.');
+      resetGame(); // Reset level jika tabrakan
+    }
+  }
+}
+
+function checkOutcome(){
+  if(robot.x === goal.x && robot.y === goal.y){
+    if(level < maxLevel){
+      alert('🎉 Level selesai! Lanjut ke level berikutnya!');
+      level++;
+      resetGame();
+    } else {
+      alert('🏆 Hebat! Kamu menyelesaikan semua level!');
+      level = 1; // Kembali ke level 1 setelah selesai semua
+      resetGame();
+    }
+  } else {
+    alert('😅 Belum sampai tujuan. Coba lagi ya!');
+    resetGame(); // Reset level jika gagal mencapai tujuan
+  }
+}
+
+</script>
+</body>
+</html>
