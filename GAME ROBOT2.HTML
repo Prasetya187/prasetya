@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Robot Si Tukang Jalan – Level Upgrade!</title>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.7.0/lib/p5.min.js"></script>
+  <style>
+    body { text-align:center; font-family:sans-serif; }
+    #controls { margin:10px; }
+    button { padding:8px 12px; font-size:16px; margin:0 5px; }
+    #commands { min-height:24px; }
+  </style>
+</head>
+<body>
+  <h1>Robot Si Tukang Jalan – Level <span id="level">1</span></h1>
+  <div id="game"></div>
+  <div id="controls">
+    <button onclick="addCommand('forward')">Maju</button>
+    <button onclick="addCommand('left')">Kiri</button>
+    <button onclick="addCommand('right')">Kanan</button>
+    <button onclick="runCommands()">Jalankan</button>
+    <button onclick="resetGame()">Ulang</button>
+  </div>
+  <div>Perintah: <span id="commands"></span></div>
+
+<script>
+let gridSize=5, cellSize=80;
+let commands=[], level=1;
+let robot, goal, stones;
+let dir=0; // 0: atas,1: kanan,2:bawah,3:kiri
+let moving=false, timer;
+
+function setup(){
+  let canvas = createCanvas(gridSize*cellSize, gridSize*cellSize);
+  canvas.parent('game');
+  resetGame();
+}
+
+function resetGame(){
+  commands=[]; dir=0; moving=false;
+  robot={x:0,y:0};
+  goal={x: gridSize-1, y: gridSize-1};
+  stones=[];
+  generateStones();
+  document.getElementById('commands').textContent = '';
+  document.getElementById('level').textContent = level;
+}
+
+function generateStones(){
+  let count = level+2;
+  while(stones.length < count){
+    let sx = floor(random(gridSize)), sy = floor(random(gridSize));
+    if((sx===robot.x&&sy===robot.y) || (sx===goal.x&&sy===goal.y)) continue;
+    if(!stones.some(s=>s.x===sx&&s.y===sy)){
+      stones.push({x:sx,y:sy});
+    }
+  }
+}
+
+function draw(){
+  background(240);
+  drawGrid();
+  drawStones();
+  drawGoal();
+  drawRobot();
+}
+
+function drawGrid(){
+  stroke(200);
+  for(let i=0;i<=gridSize;i++){
+    line(i*cellSize,0,i*cellSize,height);
+    line(0,i*cellSize,width,i*cellSize);
+  }
+}
+
+function drawRobot(){
+  let px = robot.x*cellSize + cellSize/2;
+  let py = robot.y*cellSize + cellSize/2;
+  push(); translate(px,py);
+  rotate(dir*HALF_PI);
+  fill('#1E90FF'); noStroke();
+  triangle(-20,20,20,20,0,-20);
+  pop();
+}
+
+function drawGoal(){
+  fill('gold'); noStroke();
+  ellipse(goal.x*cellSize+cellSize/2, goal.y*cellSize+cellSize/2, cellSize/2);
+}
+
+function drawStones(){
+  fill('#555'); noStroke();
+  stones.forEach(s=>{
+    rect(s.x*cellSize+10, s.y*cellSize+10, cellSize-20, cellSize-20);
+  });
+}
+
+function addCommand(c){
+  if(moving)return;
+  commands.push(c);
+  document.getElementById('commands').textContent = commands.join(', ');
+}
+
+function runCommands(){
+  if(moving || commands.length===0)return;
+  let i=0;
+  moving=true;
+  timer = setInterval(()=>{
+    if(i<commands.length){
+      exec(commands[i]); i++;
+    } else {
+      clearInterval(timer);
+      moving=false;
+      checkOutcome();
+    }
+  }, 400);
+}
+
+function exec(c){
+  if(c==='left') dir=(dir+3)%4;
+  if(c==='right') dir=(dir+1)%4;
+  if(c==='forward'){
+    let dx=[0,1,0,-1][dir], dy=[-1,0,1,0][dir];
+    let nx=robot.x+dx, ny=robot.y+dy;
+    if(nx>=0&&nx<gridSize && ny>=0&&ny<gridSize &&
+       !stones.some(s=>s.x===nx&&s.y===ny)) {
+      robot.x=nx; robot.y=ny;
+    }
+  }
+}
+
+function checkOutcome(){
+  if(robot.x===goal.x && robot.y===goal.y){
+    if(level<3){
+      level++;
+      alert('Yeay! Level selesai 🎉. Mau lanjut ke level '+level+'?');
+      resetGame();
+    } else {
+      alert('Hebat! Kamu menyelesaikan semua level! 🎊');
+      level=1;
+      resetGame();
+    }
+  } else {
+    alert('Belum sampai, coba ulang ya 🙂');
+  }
+}
+
+</script>
+</body>
+</html>
