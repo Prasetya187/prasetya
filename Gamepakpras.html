@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Robot Si Tukang Jalan – Phaser (Desain Baru!)</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+  <style>
+    body { font-family:sans-serif; text-align:center; background:#e0f7fa; margin:0 }
+    #controls { padding:10px }
+    .command { display:inline-block; padding:8px 12px; background:#0277bd; color:#fff;
+      margin:5px; border-radius:5px; cursor:grab; user-select:none }
+    #commandList { margin-top:10px; min-height:30px; }
+    button { padding:10px 16px; margin:5px; font-size:16px }
+  </style>
+</head>
+<body>
+<h1>Robot Si Tukang Jalan</h1>
+<h2>Level <span id="level">1</span> dari 5</h2>
+<div id="controls">
+  <div>
+    <div class="command" draggable="true" ondragstart="drag(event)" data-cmd="forward">Maju</div>
+    <div class="command" draggable="true" ondragstart="drag(event)" data-cmd="left">Kiri</div>
+    <div class="command" draggable="true" ondragstart="drag(event)" data-cmd="right">Kanan</div>
+  </div>
+  <div style="margin-top:10px">
+    <div id="dropZone" ondrop="drop(event)" ondragover="allowDrop(event)"
+         style="min-height:40px;border:2px dashed #aaa;padding:10px;">
+      <strong>Seret perintah ke sini</strong>
+    </div>
+    <div id="commandList"></div>
+    <button onclick="runCommands()">Jalankan</button>
+    <button onclick="resetCommands()">Ulangi Perintah</button>
+  </div>
+</div>
+
+<script>
+let config = {
+  type: Phaser.AUTO, width:400, height:400, backgroundColor:'#fff',
+  scene: { preload, create, update }
+};
+new Phaser.Game(config);
+
+let level=1, maxLevel=5;
+const gridSize=5, cellSize=80;
+let robot, goal, stones=[], commands=[], running=false;
+let robotDir=0, robotPos={ x:0, y:0 };
+let sceneRef;
+
+const levels = [
+  [],
+  [{x:2,y:2}],
+  [{x:1,y:1},{x:3,y:2}],
+  [{x:1,y:0},{x:2,y:1},{x:3,y:3}],
+  [{x:0,y:3},{x:2,y:2},{x:3,y:1},{x:4,y:0}],
+  [{x:1,y:1},{x:1,y:2},{x:2,y:3},{x:3,y:2},{x:4,y:1}]
+];
+
+function preload() {
+  this.load.image('robot', 'https://cdn-icons-png.flaticon.com/512/4712/4712107.png');
+  this.load.image('goal',  'https://cdn-icons-png.flaticon.com/512/942/942748.png');
+  this.load.image('rock',  'https://cdn-icons-png.flaticon.com/512/685/685655.png');
+}
+function create() {
+  sceneRef = this;
+  drawGrid(this);
+  setupLevel(this, level);
+}
+function drawGrid(s) {
+  for(let r=0;r<gridSize;r++){
+    for(let c=0;c<gridSize;c++){
+      let g = s.add.graphics();
+      g.lineStyle(1,0xcccccc).strokeRect(c*cellSize, r*cellSize, cellSize, cellSize);
+    }
+  }
+}
+function setupLevel(s, lvl) {
+  robotDir=0;
+  robotPos={x:0,y:0};
+  commands=[];
+  document.getElementById('dropZone').innerHTML = "<strong>Seret perintah ke sini</strong>";
+  document.getElementById('commandList').textContent = '';
+  document.getElementById('level').textContent = lvl;
+
+  if(robot) robot.destroy();
+  if(goal) goal.destroy();
+  stones.forEach(o => o.destroy());
+  stones=[];
+
+  goal = s.add.image(4*cellSize+40,4*cellSize+40,'goal').setScale(0.08);
+  robot = s.add.image(40,40,'robot').setScale(0.08);
+  levels[lvl].forEach(p => {
+    stones.push(s.add.image(p.x*cellSize+40,p.y*cellSize+40,'rock').setScale(0.08));
+  });
+}
+
+function update() {}
+
+function runCommands() {
+  if(running||commands.length===0) return;
+  running=true;
+  let i=0;
+  function step(){
+    if(i<commands.length){
+      exec(commands[i]); i++;
+      setTimeout(step,500);
+    } else {
+      running=false; checkWin();
+    }
+  }
+  step();
+}
+function exec(cmd){
+  if(cmd==='left') robotDir=(robotDir+3)%4;
+  if(cmd==='right') robotDir=(robotDir+1)%4;
+  if(cmd==='forward'){
+    const dx=[0,1,0,-1], dy=[-1,0,1,0];
+    let nx=robotPos.x+dx[robotDir], ny=robotPos.y+dy[robotDir];
+    if(nx>=0&&nx<gridSize && ny>=0&&ny<gridSize &&
+       !levels[level].some(p=>p.x===nx&&p.y===ny)){
+      robotPos={x:nx,y:ny};
+      robot.x=nx*cellSize+40; robot.y=ny*cellSize+40;
+    }
+  }
+}
+function checkWin(){
+  if(robotPos.x===4 && robotPos.y===4){
+    if(level<maxLevel){
+      alert('🎉 Level selesai! Lanjut ke level berikutnya!');
+      level++; setupLevel(sceneRef, level);
+    } else {
+      alert('🏆 Kamu menyelesaikan semua level! Reset ke Level 1');
+      level=1; setupLevel(sceneRef, level);
+    }
+  } else alert('😅 Belum sampai tujuan. Coba ulang ya!');
+}
+function resetCommands(){
+  commands=[]; document.getElementById('commandList').textContent='';
+  document.getElementById('dropZone').innerHTML = "<strong>Seret perintah ke sini</strong>";
+}
+function allowDrop(ev){ ev.preventDefault(); }
+function drag(ev){ ev.dataTransfer.setData("text", ev.target.dataset.cmd); }
+function drop(ev){
+  ev.preventDefault();
+  let cmd = ev.dataTransfer.getData("text");
+  commands.push(cmd);
+  let span = document.createElement('span');
+  span.textContent = cmd; span.style.margin = "0 5px";
+  document.getElementById('dropZone').appendChild(span);
+  document.getElementById('commandList').textContent = commands.join(', ');
+}
+</script>
+</body>
+</html>
